@@ -11,6 +11,7 @@ import os
 import random
 import sys
 import pygame
+from PIL import Image, ImageOps
 
 # ---- Configuration -------------------------------------------------
 
@@ -51,10 +52,20 @@ def scale_to_fit(image, screen_size):
 
 
 def render_frame(path, screen_size):
-    """Load a photo and return a full-screen surface with it centred/letterboxed."""
+    """Load a photo and return a full-screen surface with it centred/letterboxed.
+
+    Loaded via Pillow rather than pygame.image.load() so that EXIF orientation
+    metadata is honoured -- otherwise portrait phone photos (stored as landscape
+    pixel data with a rotation flag) come out sideways.
+    """
     try:
-        image = pygame.image.load(path).convert()
-    except pygame.error as e:
+        with Image.open(path) as pil_image:
+            pil_image = ImageOps.exif_transpose(pil_image)  # apply EXIF rotation
+            pil_image = pil_image.convert("RGB")
+            data = pil_image.tobytes()
+            size = pil_image.size
+            image = pygame.image.fromstring(data, size, "RGB")
+    except (pygame.error, OSError) as e:
         print(f"Skipping {path}: {e}")
         return None
 
